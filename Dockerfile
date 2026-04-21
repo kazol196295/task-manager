@@ -35,6 +35,11 @@ RUN composer install --no-interaction --optimize-autoloader --no-dev
 # Install Node dependencies and build assets
 RUN npm ci && npm run build
 
+# =========================================================
+# THE FIX: Enable Apache mod_rewrite for Laravel routing
+# =========================================================
+RUN a2enmod rewrite
+
 # Change Apache DocumentRoot to Laravel's public folder
 RUN sed -i 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf
 
