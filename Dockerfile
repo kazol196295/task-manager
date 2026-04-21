@@ -39,7 +39,11 @@ RUN npm ci && npm run build
 RUN sed -i 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf
 
 # Give proper permissions to Laravel storage and cache
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 /var/www/html/storage \
+    && chmod -R 775 /var/www/html/bootstrap/cache
+# Run migrations automatically during build (since Shell is restricted on free tier)
+RUN php artisan migrate --force
 
-# Expose port 80 (Render will map this to your $PORT)
+# Expose port 80
 EXPOSE 80
