@@ -23,7 +23,7 @@ class TaskController extends Controller
     public function store(StoreTaskRequest $request): JsonResponse
     {
         $task = Task::create($request->validated());
-        return response()->json(['message' => 'Task created.', 'task' => new TaskResource($task)], 201);
+        return response()->json(['message' => 'Task created successfully.', 'task' => new TaskResource($task)], 201);
     }
 
     public function show(Task $task): TaskResource
@@ -40,7 +40,7 @@ class TaskController extends Controller
     public function destroy(Task $task): JsonResponse
     {
         $task->delete();
-        return response()->json(['message' => 'Task deleted.']);
+        return response()->json(['message' => 'Task deleted successfully.']);
     }
 
     public function updateStatus(Request $request, Task $task): JsonResponse
