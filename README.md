@@ -1,7 +1,7 @@
-```markdown
+
 # Task Manager - Laravel Full Stack Application
 
-A clean, intuitive, and reliable task management system built for the **Qtec Solution Limited** technical assessment. This application allows teams to organize daily work, track task progress, and manage priorities efficiently.
+A clean, intuitive, and reliable task management system allows teams to organize daily work, track task progress, and manage priorities efficiently.
 
 ![Laravel](https://img.shields.io/badge/Laravel-11.x-FF2D20?style=flat-square&logo=laravel)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.x-06B6D4?style=flat-square&logo=tailwindcss)
@@ -55,7 +55,7 @@ Follow these steps to set up the project locally using XAMPP or any local PHP en
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/task-manager.git
+   git clone https://github.com/kazol196295/task-manager.git
    cd task-manager
    ```
 
@@ -158,18 +158,55 @@ Migrations and seeding run automatically upon container startup via the `start.s
 
 ---
 
-## 🧠 Design Decisions & Approach
+## 💡 Assumptions & Design Decisions
 
-- **Form Requests:** Used dedicated `StoreTaskRequest` and `UpdateTaskRequest` classes to keep controllers clean and move validation logic out of the controller.
-- **API Resources:** Utilized `TaskResource` to format JSON responses and protect the database structure from being directly exposed.
-- **Scopes & Accessors:** Kept query logic (filtering, overdue) and attribute logic (`is_overdue`) inside the Eloquent model to follow the "Fat Models, Skinny Controllers" principle.
-- **Tailwind v4:** Leveraged the latest Tailwind CSS v4 with Vite for a modern, utility-first UI without writing custom CSS files.
-- **Environment Agnostic:** Configured `config/database.php` to parse the `DATABASE_URL`, allowing the app to seamlessly run on MySQL locally and PostgreSQL in production without code changes.
+1. **Database Agnostic Design:** I assumed the application might be deployed on various hosting environments. Therefore, I configured `config/database.php` to parse the `DATABASE_URL` environment variable. This allows the app to run seamlessly on MySQL locally and PostgreSQL in production without changing any code or migrations.
+2. **Soft Deletes over Hard Deletes:** I implemented Soft Deletes (`SoftDeletes` trait) instead of permanently removing records from the database. This ensures that accidental deletions by users can be recovered, aligning with the client's expectation of a "reliable" system.
+3. **Separation of Concerns (Fat Models, Skinny Controllers):** 
+   - **Scopes:** I moved filtering logic (status, priority, search, overdue) into model scopes (`scopeFilter`) to keep controllers clean and allow query reuse.
+   - **Accessors:** Business logic like determining if a task is overdue (`getIsOverdueAttribute`) was placed in the model as an accessor, keeping views and controllers simple.
+4. **Form Requests for Validation:** Instead of validating data directly in the controller, I created dedicated `StoreTaskRequest` and `UpdateTaskRequest` classes. This makes the validation rules reusable, easily testable, and keeps the controller focused on HTTP routing.
+5. **API Resources:** I used `TaskResource` to format JSON responses. This prevents exposing sensitive or unnecessary database columns directly to the API consumer and provides a consistent data structure.
+6. **Tailwind CSS v4:** Leveraged the latest Tailwind v4 along with the `@tailwindcss/vite` plugin for a modern, utility-first UI without the need for custom CSS files or heavy JavaScript frameworks.
+7. **Quick Status Update:** Since changing a task's status is the most common action in a task manager, I created a dedicated route (`PATCH /tasks/{id}/status`) and an inline dropdown on the index page, so users don't have to navigate to the edit page just to mark a task complete.
 
+---
+
+## 🧪 Notes on Testing Approach
+
+The client values reliability and expects core functionalities to be tested. I implemented a comprehensive testing suite using PHPUnit, focusing on both isolated logic and full HTTP lifecycle.
+
+Run the entire test suite:
+```bash
+php artisan test
+```
+
+### Testing Strategy
+
+1. **Unit Tests (Isolated Logic):**
+   - Focused strictly on the `Task` model.
+   - Tested custom scopes (`pending`, `completed`, `overdue`) to ensure they return the correct query constraints.
+   - Tested accessors (e.g., `is_overdue` returns true only if past due date AND not completed).
+   - Verified soft delete functionality and date casting.
+
+2. **Feature Web Tests (User Journey):**
+   - Simulated user interactions via HTTP requests to the web routes.
+   - Tested that pages load successfully (200 OK) and display the correct Blade views.
+   - Tested the full CRUD lifecycle: creating a task via POST, updating via PUT, and soft-deleting via DELETE.
+   - Extensively tested form validation (missing required fields, invalid status/priority, past due dates) to ensure the application gracefully handles bad input.
+   - Tested the filtering system to ensure search and status filters modify the view output correctly.
+
+3. **Feature API Tests (JSON Endpoints):**
+   - Tested the RESTful API endpoints (`/api/tasks`).
+   - Verified correct HTTP status codes (201 for creation, 200 for OK, 404 for not found, 422 for validation errors).
+   - Ensured the API returns properly structured JSON as defined in the `TaskResource`.
+   - Tested API-specific features like pagination structure and the stats endpoint.
+
+*This multi-layered approach ensures that whether a user is clicking through the UI or a mobile app is consuming the API, the system behaves as expected under normal and edge-case use.*
 ---
 
 ## 📄 License
 
 This project is developed for the technical assessment at Qtec Solution Limited.
-```
+
 
