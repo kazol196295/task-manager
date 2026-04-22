@@ -174,35 +174,82 @@ Migrations and seeding run automatically upon container startup via the `start.s
 
 ## 🧪 Notes on Testing Approach
 
-The client values reliability and expects core functionalities to be tested. I implemented a comprehensive testing suite using PHPUnit, focusing on both isolated logic and full HTTP lifecycle.
+The client values reliability and expects core functionalities to be tested. I implemented a comprehensive testing suite using PHPUnit, focusing on both isolated business logic and full HTTP lifecycle simulations.
 
 Run the entire test suite:
 ```bash
 php artisan test
 ```
 
-### Testing Strategy
+### 1. TaskTest.php (Feature Tests)
+This file tests the application from the user's perspective, simulating HTTP requests to ensure web features like page visits, form submissions, and filtering work correctly.
 
-1. **Unit Tests (Isolated Logic):**
-   - Focused strictly on the `Task` model.
-   - Tested custom scopes (`pending`, `completed`, `overdue`) to ensure they return the correct query constraints.
-   - Tested accessors (e.g., `is_overdue` returns true only if past due date AND not completed).
-   - Verified soft delete functionality and date casting.
+**── View / Index Tests (Viewing Task Lists & Pages) ──**
+* **test_can_view_tasks_index_page:** Checks if the task list page (tasks.index route) loads successfully and receives the task data.
+* **test_index_displays_stats_correctly:** Ensures the dashboard statistics (e.g., Total 3, Pending 1, Completed 1) are calculated and displayed accurately.
+* **test_index_can_filter_by_status:** Verifies that when a user filters by "Pending", only pending tasks are displayed (completed tasks are hidden).
+* **test_index_can_search_tasks:** Ensures the search box accurately finds tasks based on specific keywords (e.g., "Laravel").
+* **test_index_shows_empty_state_when_no_tasks:** Confirms that the "No tasks found" message is displayed when the database is empty.
 
-2. **Feature Web Tests (User Journey):**
-   - Simulated user interactions via HTTP requests to the web routes.
-   - Tested that pages load successfully (200 OK) and display the correct Blade views.
-   - Tested the full CRUD lifecycle: creating a task via POST, updating via PUT, and soft-deleting via DELETE.
-   - Extensively tested form validation (missing required fields, invalid status/priority, past due dates) to ensure the application gracefully handles bad input.
-   - Tested the filtering system to ensure search and status filters modify the view output correctly.
+**── Create Tests (Creating New Tasks) ──**
+* **test_can_view_create_task_page:** Checks if the create task form page loads without errors.
+* **test_can_create_task_with_minimum_data:** Verifies that submitting only the required fields (title, status, priority) successfully saves to the database and shows a success message.
+* **test_can_create_task_with_all_data:** Ensures that filling out all fields (including description and deadline) saves correctly to the database.
 
-3. **Feature API Tests (JSON Endpoints):**
-   - Tested the RESTful API endpoints (`/api/tasks`).
-   - Verified correct HTTP status codes (201 for creation, 200 for OK, 404 for not found, 422 for validation errors).
-   - Ensured the API returns properly structured JSON as defined in the `TaskResource`.
-   - Tested API-specific features like pagination structure and the stats endpoint.
+**── Validation Tests (Blocking Invalid Data) ──**
+* **test_create_validates_required_fields:** Ensures the system blocks empty form submissions and returns validation error messages.
+* **test_create_validates_title_max_length:** Verifies that titles exceeding 255 characters are rejected with a warning.
+* **test_create_validates_invalid_status:** Ensures that invalid statuses (e.g., 'archived') are rejected.
+* **test_create_validates_invalid_priority:** Ensures that invalid priorities (e.g., 'urgent') are rejected.
+* **test_create_validates_past_due_date:** Confirms that setting a due date in the past is rejected with an error.
 
-*This multi-layered approach ensures that whether a user is clicking through the UI or a mobile app is consuming the API, the system behaves as expected under normal and edge-case use.*
+**── Show Tests (Viewing Details) ──**
+* **test_can_view_task_detail:** Verifies that visiting a specific task's detail page displays the correct task title and information.
+
+**── Update Tests (Editing Tasks) ──**
+* **test_can_view_edit_task_page:** Checks if the edit form loads correctly and displays the existing data.
+* **test_can_update_task:** Ensures that submitting the edit form updates the record in the database accurately.
+* **test_update_validates_invalid_data:** Verifies that submitting invalid data during an update is blocked by validation.
+
+**── Delete Tests (Deleting Tasks) ──**
+* **test_can_delete_task:** Verifies that clicking delete soft-deletes the task (hidden but not permanently removed from the database) and shows a success message.
+
+**── Status Update Tests (Quick Status Update) ──**
+* **test_can_update_task_status_via_web:** Ensures a task's status can be changed directly (e.g., from 'pending' to 'completed') without using the full edit form.
+* **test_update_status_validates_invalid_status:** Confirms that providing an invalid status during a quick update fails validation and leaves the task's original status unchanged.
+
+---
+
+### 2. TaskModelTest.php (Unit Tests)
+This file does not test routes or pages. Instead, it isolates and tests the internal database queries, methods, and logic of the `Task` Eloquent model to ensure they function flawlessly.
+
+**── Scope Tests (Filtering Specific Data from the Database) ──**
+* **test_pending_scope_returns_only_pending_tasks:** Ensures `Task::pending()` fetches only tasks with a pending status.
+* **test_in_progress_scope_returns_only_in_progress_tasks:** Ensures `Task::inProgress()` fetches only in-progress tasks.
+* **test_completed_scope_returns_only_completed_tasks:** Ensures `Task::completed()` fetches only completed tasks.
+* **test_high_priority_scope:** Ensures `Task::highPriority()` fetches only high-priority tasks.
+* **test_overdue_scope_excludes_completed_tasks:** Guarantees that completed tasks are excluded from the overdue list, even if their deadline has passed.
+* **test_overdue_scope_excludes_future_tasks:** Ensures that tasks with future deadlines are not incorrectly flagged as overdue.
+
+**── Filter Scope Tests (Custom Search & Filter Logic) ──**
+* **test_filter_scope_with_status:** Verifies the model's `filter()` method correctly returns data when filtered by status.
+* **test_filter_scope_with_priority:** Verifies the `filter()` method correctly returns data when filtered by priority.
+* **test_filter_scope_with_search:** Ensures searching by a keyword in the title works correctly inside the model query.
+* **test_filter_scope_searches_description:** Confirms that searching by a keyword also checks within the task's description field.
+* **test_filter_scope_with_multiple_filters:** Verifies that applying multiple conditions simultaneously (e.g., Pending + High Priority) accurately returns only the data matching both criteria.
+
+**── Accessor Tests (Formatting Data for Display) ──**
+* **test_is_overdue_accessor_returns_true_for_past_due_pending_task:** Ensures `is_overdue` returns true for a pending task whose deadline has passed.
+* **test_is_overdue_accessor_returns_false_for_future_due_task:** Ensures `is_overdue` returns false for tasks with future deadlines.
+* **test_is_overdue_accessor_returns_false_for_completed_past_due_task:** Ensures `is_overdue` returns false for tasks that are completed, even if the deadline has passed (completed tasks are not overdue).
+* **test_is_overdue_accessor_returns_false_for_task_with_no_due_date:** Ensures `is_overdue` returns false for tasks with no deadline set.
+* **test_status_badge_color_accessor:** Verifies the correct badge color string is returned based on status (pending=yellow, in_progress=blue, completed=green).
+* **test_priority_badge_color_accessor:** Verifies the correct badge color string is returned based on priority (high=red, medium=orange, low=green).
+
+**── Cast & Soft Delete Tests (Data Types & Delete Configuration) ──**
+* **test_due_date_is_cast_to_carbon_instance:** Ensures the `due_date` string from the database is automatically converted into a Laravel Carbon date object for easy date manipulation.
+* **test_task_uses_soft_deletes:** Verifies that deleting a task soft-deletes it (hides it from normal queries but keeps it in the database) rather than permanently erasing it.
+* **test_task_can_be_force_deleted:** Ensures that using the `forceDelete()` function permanently removes the task record from the database.
 ---
 
 ## 📄 License
